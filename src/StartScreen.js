@@ -6,8 +6,8 @@ const StartScreen = ({ navigation }) => {
   const [selectedLandmarkType, setSelectedLandmarkType] = useState('');
 
   const pdfOptions = [
-    { label: 'IRS W-4 Form', value: 'https://raw.githubusercontent.com/Wyatt-Drew/Mobile-Project/main/assets/pdf/fw4.pdf' },
-    { label: 'Sample PDF', value: 'https://raw.githubusercontent.com/Wyatt-Drew/Mobile-Project/main/assets/pdf/sample.pdf' },
+    { label: '25 Page Test', value: 'https://raw.githubusercontent.com/Wyatt-Drew/Mobile-Project/main/assets/pdf/25PageTest.pdf' },
+    { label: '44 Page Test', value: 'https://raw.githubusercontent.com/Wyatt-Drew/Mobile-Project/main/assets/pdf/44PageTest.pdf' },
   ];
 
   const landmarkTypes = [
