@@ -6,8 +6,8 @@ const StartScreen = ({ navigation }) => {
   const [selectedLandmarkType, setSelectedLandmarkType] = useState('');
 
   const pdfOptions = [
-    { label: 'IRS W-4 Form', value: 'https://www.irs.gov/pub/irs-pdf/fw4.pdf' },
-    { label: 'Sample PDF', value: 'https://pdfobject.com/pdf/sample.pdf' },
+    { label: 'IRS W-4 Form', value: 'https://raw.githubusercontent.com/Wyatt-Drew/Mobile-Project/main/assets/pdf/fw4.pdf' },
+    { label: 'Sample PDF', value: 'https://raw.githubusercontent.com/Wyatt-Drew/Mobile-Project/main/assets/pdf/sample.pdf' },
   ];
 
   const landmarkTypes = [
