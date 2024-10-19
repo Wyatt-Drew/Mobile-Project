@@ -1,32 +1,35 @@
 import React, { useRef, useState } from 'react';
-import { View, Animated, Dimensions, StyleSheet } from 'react-native';
-import Pdf from 'react-native-pdf';
+import { View, Animated, Dimensions, StyleSheet, Text } from 'react-native';
+import Pdf from '../libraries/react-native-pdf'; // Assuming the modified library is local
 
 const PdfRead = ({ route }) => {
   const { pdfUri } = route.params; // Assuming pdfUri is passed as a parameter
   const PdfResource = { uri: pdfUri, cache: true };
 
-  const windowHeight = Dimensions.get('window').height;
-  const scrollY = useRef(new Animated.Value(0)).current; // Track the scroll position
-  const [totalPages, setTotalPages] = useState(0); // Track total number of pages
+  const [scrollPosition, setScrollPosition] = useState({ x: 0, y: 0 }); // Track scroll position
 
-  // Scroll event listener that can be added to react-native-pdf library
-  const handleScroll = (event) => {
-    const scrollPosition = event.nativeEvent.contentOffset.y;
-    scrollY.setValue(scrollPosition);
-    console.log(`Scroll position: ${scrollPosition}`);
+  // Scroll event handler that listens to the scroll events and updates the state
+  const handleScroll = (x, y) => {
+    console.log(`onScroll triggered - X: ${x}, Y: ${y}`);
+    setScrollPosition({ x, y });
   };
-
+  
   return (
     <View style={styles.container}>
-      <Pdf
-        source={PdfResource}
-        onLoadComplete={(numberOfPages) => setTotalPages(numberOfPages)} // Capture total pages on load
-        onError={(error) => console.log('Error loading PDF:', error)}
-        style={styles.pdf} // Set PDF view styles
-        onScroll={handleScroll} // Custom scroll handler (modify library to add this)
-      />
-      {/* Add any additional scroll-related UI or tracking elements here */}
+<Pdf
+  source={PdfResource}
+  onLoadComplete={(numberOfPages) => console.log(`PDF Loaded with ${numberOfPages} pages`)}
+  onPageChanged={(page, numberOfPages) => console.log(`Page changed to ${page} of ${numberOfPages}`)}
+  onError={(error) => console.log(`PDF Error: ${error}`)}
+  onScroll={handleScroll}
+  style={styles.pdf}
+/>
+      {/* Display the scroll position in the bottom-left corner */}
+      <View style={styles.scrollPositionContainer}>
+        <Text style={styles.scrollPositionText}>
+          X: {scrollPosition.x.toFixed(2)}, Y: {scrollPosition.y.toFixed(2)}
+        </Text>
+      </View>
     </View>
   );
 };
@@ -41,5 +44,17 @@ const styles = StyleSheet.create({
     flex: 1, // Ensure the PDF takes the full screen space
     width: Dimensions.get('window').width,
     height: Dimensions.get('window').height,
+  },
+  scrollPositionContainer: {
+    position: 'absolute', // Make sure it stays at the bottom-left
+    bottom: 10,
+    left: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent background for visibility
+    padding: 5,
+    borderRadius: 5,
+  },
+  scrollPositionText: {
+    color: 'white', // White text color for contrast
+    fontSize: 14,
   },
 });
