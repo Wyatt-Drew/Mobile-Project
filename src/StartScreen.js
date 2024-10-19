@@ -6,8 +6,8 @@ const StartScreen = ({ navigation }) => {
   const [selectedLandmarkType, setSelectedLandmarkType] = useState('');
 
   const pdfOptions = [
-    { label: '25 Page Test', value: 'https://raw.githubusercontent.com/Wyatt-Drew/Mobile-Project/main/assets/pdf/25PageTest.pdf' },
-    { label: '44 Page Test', value: 'https://raw.githubusercontent.com/Wyatt-Drew/Mobile-Project/main/assets/pdf/44PageTest.pdf' },
+    { label: '25 Page Test', value: 'https://www.uregina.ca/oir/assets/budget/comprehensive/2024-25-cbp.pdf' },
+    { label: '44 Page Test', value: 'https://www.uregina.ca/financial-services/assets/budget-assets/2024-25-budget-docs/2024-03-22-budget-town-hall.pdf' },
   ];
 
   const landmarkTypes = [
