@@ -1,6 +1,6 @@
 import { View, StyleSheet, Dimensions, StatusBar, Platform } from 'react-native';
 import React, { useRef, useState, useEffect } from 'react';
-import Pdf from 'react-native-pdf';
+import Pdf from '../libraries/react-native-pdf';
 
 const PdfRead = ({ route }) => {
   // Receive the PDF URI from the route parameters
