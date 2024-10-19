@@ -1,34 +1,156 @@
-import React, { useRef, useState } from 'react';
-import { View, Animated, Dimensions, StyleSheet, Text } from 'react-native';
-import Pdf from '../libraries/react-native-pdf'; // Assuming the modified library is local
+import { View, Text, StyleSheet, Dimensions, Animated, ScrollView, PanResponder, StatusBar, Platform, TouchableOpacity } from 'react-native';
+import React, { useRef, useState, useEffect } from 'react';
+import Pdf from 'react-native-pdf';
+import { renderLandmark, LandmarkType } from './LandmarkRenderer';
 
 const PdfRead = ({ route }) => {
-  const { pdfUri } = route.params; // Assuming pdfUri is passed as a parameter
+  // Receive the PDF URI and Landmark Type from the StartScreen
+  const { pdfUri, landmarkType } = route.params;
+
   const PdfResource = { uri: pdfUri, cache: true };
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const [pdfHeight, setPdfHeight] = useState(Dimensions.get('window').height);
+  const scrollViewRef = useRef();
+  const windowHeight = Dimensions.get('window').height;
+  const isUnmounted = useRef(false);
 
-  const [scrollPosition, setScrollPosition] = useState({ x: 0, y: 0 }); // Track scroll position
+  const statusBarHeight = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 20;
+  // These may or may not be used.  Gives full control of scrollbar appearance.
+  const visualOffset = 0;
+  const simulatedOffset = 50;
+  const bottomPadding = 0;
+  const usableHeight = windowHeight - statusBarHeight - visualOffset;
 
-  // Scroll event handler that listens to the scroll events and updates the state
-  const handleScroll = (x, y) => {
-    console.log(`onScroll triggered - X: ${x}, Y: ${y}`);
-    setScrollPosition({ x, y });
+  // PanResponder for the draggable scrollbar
+  const pan = useRef(new Animated.Value(0)).current;
+
+  // Calculate the height of the custom scrollbar dynamically
+  const scrollbarHeight = pdfHeight > usableHeight
+    ? (usableHeight * (usableHeight / pdfHeight))
+    : usableHeight;
+
+  // Constrain the scroll position to prevent gaps at start and ensure scrolling to the bottom
+  const constrainScrollPosition = (position) => {
+    return Math.max(0, Math.min(position, pdfHeight - usableHeight));
   };
-  
+
+  const constrainScrollbarPosition = (position) => {
+    return Math.max(0, Math.min(position, usableHeight - scrollbarHeight));
+  };
+
+  // Handle when the user drags the scrollbar
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onPanResponderMove: (e, gestureState) => {
+      // Ensure the scroll position calculation allows for the full range of movement
+      let scrollPosition = ((gestureState.moveY + simulatedOffset) / usableHeight) * pdfHeight;
+      scrollPosition = constrainScrollPosition(scrollPosition); // Constrain the scroll position
+      scrollY.setValue(scrollPosition);
+
+      if (scrollViewRef.current) {
+        scrollViewRef.current.scrollTo({ y: scrollPosition, animated: false });
+      }
+    },
+  });
+
+  // Sync the custom scrollbar with the ScrollView scrolling
+  scrollY.addListener(({ value }) => {
+    // Apply the simulated offset to the scrollbar's translation
+    let newPanPosition = ((value / pdfHeight) * usableHeight) - simulatedOffset;
+    newPanPosition = constrainScrollbarPosition(newPanPosition); // Constrain the scrollbar's movement within bounds
+    pan.setValue(newPanPosition); // Move the custom scrollbar based on the ScrollView scroll position
+  });
+
+  // Calculate section height and which section is currently active
+  const sectionHeight = pdfHeight / 10;
+
+  const getActiveSection = () => {
+    // Calculate the current section based on scroll position
+    return scrollY.interpolate({
+      inputRange: Array.from({ length: 11 }, (_, i) => i * sectionHeight),
+      outputRange: Array.from({ length: 11 }, (_, i) => i),
+      extrapolate: 'clamp',
+    });
+  };
+
+  const activeSection = getActiveSection();
+
+  const getIconOpacity = (index) => {
+    return activeSection.interpolate({
+      inputRange: [index - 0.5, index, index + 0.5],
+      // Bright when current section, otherwise dim
+      outputRange: [0.3, 1, 0.3],
+      extrapolate: 'clamp',
+    });
+  };
+
+  const scrollToSection = (index) => {
+    const targetScrollY = index * sectionHeight;
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: targetScrollY, animated: true });
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      isUnmounted.current = true;
+    };
+  }, []);
+
   return (
     <View style={styles.container}>
-<Pdf
-  source={PdfResource}
-  onLoadComplete={(numberOfPages) => console.log(`PDF Loaded with ${numberOfPages} pages`)}
-  onPageChanged={(page, numberOfPages) => console.log(`Page changed to ${page} of ${numberOfPages}`)}
-  onError={(error) => console.log(`PDF Error: ${error}`)}
-  onScroll={handleScroll}
-  style={styles.pdf}
-/>
-      {/* Display the scroll position in the bottom-left corner */}
-      <View style={styles.scrollPositionContainer}>
-        <Text style={styles.scrollPositionText}>
-          X: {scrollPosition.x.toFixed(2)}, Y: {scrollPosition.y.toFixed(2)}
-        </Text>
+      {/* ScrollView for the PDF */}
+      <ScrollView
+        ref={scrollViewRef}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: bottomPadding }} // Add bottom padding
+        onLayout={() => {
+          if (scrollViewRef.current) {
+            scrollViewRef.current.scrollTo({ y: 0, animated: false }); // Ensure it starts at the top
+          }
+        }}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+      >
+        <Pdf
+          trustAllCerts={false}
+          source={PdfResource}
+          style={[styles.pdf, { height: pdfHeight + bottomPadding }]}
+          onLoadComplete={(numberOfPages) => {
+            if (!isUnmounted.current) {
+              const dynamicHeight = usableHeight * numberOfPages;
+              setPdfHeight(dynamicHeight);
+              console.log(`Number of pages: ${numberOfPages}, Dynamic height: ${dynamicHeight}`);
+            }
+          }}
+          onError={(error) => console.log('Error loading PDF', error)}
+        />
+      </ScrollView>
+
+      {/* Custom Scrollbar */}
+      <Animated.View
+        {...panResponder.panHandlers}
+        style={[
+          styles.scrollbar,
+          {
+            height: scrollbarHeight,
+            transform: [{ translateY: pan }],
+            top: statusBarHeight + visualOffset,
+          },
+        ]}
+      />
+
+      {/* Custom Landmarks */}
+      <View style={[styles.iconContainer, { top: statusBarHeight + visualOffset }]}>
+        {[...Array(10)].map((_, index) => (
+          <TouchableOpacity key={index} onPress={() => scrollToSection(index)}>
+            {renderLandmark(landmarkType, index, getIconOpacity(index))}
+          </TouchableOpacity>
+        ))}
       </View>
     </View>
   );
@@ -40,21 +162,37 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  pdf: {
-    flex: 1, // Ensure the PDF takes the full screen space
-    width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height,
+  title: {
+    fontSize: 25,
+    textAlign: 'center',
+    fontWeight: 'bold',
+    marginBottom: 10,
   },
-  scrollPositionContainer: {
-    position: 'absolute', // Make sure it stays at the bottom-left
-    bottom: 10,
-    left: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Semi-transparent background for visibility
-    padding: 5,
+  pdf: {
+    width: Dimensions.get('window').width,
+    backgroundColor: '#f0f0f0',
+  },
+  scrollbar: {
+    position: 'absolute',
+    width: 15,
+    right: 10,
+    backgroundColor: 'blue',
     borderRadius: 5,
   },
-  scrollPositionText: {
-    color: 'white', // White text color for contrast
-    fontSize: 14,
+  iconContainer: {
+    position: 'absolute',
+    left: 10,
+    justifyContent: 'space-between',
+    height: Dimensions.get('window').height - 100, // Adjusted height for the icons
+  },
+  landmarkText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginVertical: 10,
+  },
+  icon: {
+    width: 30,
+    height: 30,
+    marginVertical: 10,
   },
 });
